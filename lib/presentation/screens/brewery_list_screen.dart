@@ -100,7 +100,7 @@ class _BreweryListScreenState extends State<BreweryListScreen> {
                   title: Text('${brewery.name}'),
                   subtitle: Text(
                     'Kind: ${brewery.breweryType.name} · '
-                        'City: ${brewery.city ?? "Sin ciudad"}',
+                        'City: ${brewery.city ?? "Unknow"}',
                   ),
                   trailing: const Icon(
                     Icons.chevron_right,

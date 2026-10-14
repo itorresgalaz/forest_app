@@ -112,6 +112,35 @@ codex resume 01a120df-c1d9-7e03-8544-cfbddb197536
 
 https://app.quicktype.io/ para transformar la respuesta del json a la entidad
 
+
+TEST 
+
+flowchart TD
+A["Test envía BreweryListRequested"] --> B["BreweryListBloc"]
+B --> C["Emite Loading"]
+B --> D["MockBreweryRepository"]
+D --> E["Devuelve 20 cervecerías simuladas"]
+E --> F["BLoC emite Loaded"]
+F --> G{"¿Se emitieron los estados esperados?"}
+G -->|Sí| H["TEST PASSED"]
+G -->|No| I["TEST FAILED"]
+
+Un TEST en bloc debe responder 3 preguntas
+Given: ¿en qué situación comenzamos?
+When: ¿qué evento ejecutamos?
+Then: ¿qué estados esperamos recibir?
+
+
+Responsabilidad de cada etapa del test
+flowchart TD
+A["brewery_list_bloc_test.dart"] --> B["MockBreweryRepository"]
+B --> C["Simula las respuestas del repositorio"]
+A --> D["blocTest"]
+D --> E["build: construye BreweryListBloc"]
+E --> F["act: envía eventos"]
+F --> G["expect: comprueba estados"]
+G --> H["verify: comprueba llamadas"]
+
 flutter pub add dio
 flutter pub add bloc_concurrency
 flutter pub add flutter_bloc
@@ -119,6 +148,6 @@ flutter pub add get_it
 flutter pub add injectable
 flutter pub add equatable
 flutter pub add go_router
-flutter pub add bloc_test
-flutter pub add mocktail
+flutter pub add bloc_test  EN DEV
+flutter pub add mocktail EN DEV
 flutter pub add stream_transform

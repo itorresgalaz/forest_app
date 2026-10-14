@@ -17,6 +17,7 @@ import 'package:injectable/injectable.dart' as _i526;
 import '../../data/datasources/brewery_remote_datasource.dart' as _i578;
 import '../../data/repositories_impl/brewery_repository_impl.dart' as _i475;
 import '../../domain/repositories/brewery_repository.dart' as _i745;
+import '../../presentation/bloc/brewery_list_bloc.dart' as _i603;
 import '../network/api_url.dart' as _i682;
 
 extension GetItInjectableX on _i174.GetIt {
@@ -33,6 +34,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i745.BreweryRepository>(
       () => _i475.BreweryRepositoryImpl(gh<_i578.BreweryRemoteDatasource>()),
+    );
+    gh.factory<_i603.BreweryListBloc>(
+      () => _i603.BreweryListBloc(gh<_i745.BreweryRepository>()),
     );
     return this;
   }

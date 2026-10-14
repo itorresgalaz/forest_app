@@ -1,44 +1,48 @@
-import 'package:flutter/material.dart';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:forestchallenger/core/router/routes.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../domain/entities/brewery.dart';
-import '../di/injection.dart';
 
 
-abstract final class AppRouter {
-  static final GoRouter router = GoRouter(
-    initialLocation: '/breweries',
-    routes: [
-      GoRoute(
-        path: '/breweries',
-        name: RouteNames.breweries,
-        builder: (context, state) {
-          return BlocProvider(
-            create: (_) => getIt<BreweriesBloc>(),
-            child: const BreweriesPage(),
-          );
-        },
-      ),
-      GoRoute(
-        path: '/breweries/:id',
-        name: RouteNames.breweryDetail,
-        builder: (context, state) {
-          final brewery = state.extra;
+import '../../presentation/bloc/brewery_list_bloc.dart';
+import '../../presentation/screens/brewery_details_screen.dart';
+import '../../presentation/screens/brewery_list_screen.dart';
 
-          if (brewery is! Brewery ||
-              brewery.id != state.pathParameters['id']) {
-            return const Scaffold(
-              body: Center(
-                child: Text('Brewery details unavailable'),
-              ),
+class AppRouter {
+  const AppRouter._();
+
+  static GoRouter create({
+    required BreweryListBloc Function() createListBloc,
+    //required BreweryDetailCubit Function() createDetailCubit,
+  }) {
+    return GoRouter(
+      initialLocation: '/breweries',
+      routes: [
+        GoRoute(
+          path: '/breweries',
+          name: 'brewery-list',
+          builder: (context, state) {
+            return BlocProvider(
+              create: (_) => createListBloc()
+                ..add(const BreweryListRequested()),
+              child: const BreweryListScreen(),
             );
-          }
-
-          return BreweryDetailPage(brewery: brewery);
-        },
-      ),
-    ],
-  );
+          },
+        ),
+        // GoRoute(
+        //   path: '/breweries/:id',
+        //   name: 'brewery-detail',
+        //   builder: (context, state) {
+        //     final id = state.pathParameters['id']!;
+        //
+        //     return BlocProvider(
+        //       create: (_) => createDetailCubit()
+        //         ..loadBrewery(id),
+        //       child: const BreweryDetailScreen(),
+        //     );
+        //   },
+        // ),
+      ],
+    );
+  }
 }

@@ -1,0 +1,20 @@
+### GET request to example server
+GET https://examples.http-client.intellij.net/get
+    ?generated-in=IntelliJ IDEA
+
+
+#| Listado paginado | `https://api.openbrewerydb.org/v1/breweries?per_page=20&page=1` |
+#| Detalle por identificador | `https://api.openbrewerydb.org/v1/breweries/{id}` |
+#| Búsqueda | `https://api.openbrewerydb.org/v1/breweries/search?query={q}` |
+
+#| Listado paginado
+###
+GET https://api.openbrewerydb.org/v1/breweries?per_page=2&page=1
+
+#| Detalle por identificador {id = aa7cbe9b-3a0f-4888-9884-6186b0042b55 }
+###
+GET https://api.openbrewerydb.org/v1/breweries/aa7cbe9b-3a0f-4888-9884-6186b0042b55
+
+#| Búsqueda
+###
+GET https://api.openbrewerydb.org/v1/breweries/search?query={q}

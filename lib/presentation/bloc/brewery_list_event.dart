@@ -5,34 +5,43 @@ part of 'brewery_list_bloc.dart';
 sealed class BreweryListEvent extends Equatable{
   const BreweryListEvent();
 
-
   @override
   List<Object?> get props => [];
-
 }
 
 
 final class BreweryListRequested extends BreweryListEvent {
-  const BreweryListRequested({this.query = ''});
 
-  final String query;
-
-  @override
-  List<Object?> get props => [query];
-}
-
-final class BreweryNextPageRequested extends BreweryListEvent{
-  const BreweryNextPageRequested();
+  const BreweryListRequested();
 
 }
 
-
-final class BrewerySearchChanged extends BreweryListEvent {
-  const BrewerySearchChanged(this.query);
-
-  final String query;
-
-  @override
-  List<Object?> get props => [query];
+final class BreweryListNextRequested extends BreweryListEvent {
+  const BreweryListNextRequested();
 }
+
+//
+// final class BreweryListRequested extends BreweryListEvent {
+//   const BreweryListRequested({this.query = ''});
+//
+//   final String query;
+//
+//   @override
+//   List<Object?> get props => [query];
+// }
+//
+// final class BreweryNextPageRequested extends BreweryListEvent{
+//   const BreweryNextPageRequested();
+//
+// }
+//
+//
+// final class BrewerySearchChanged extends BreweryListEvent {
+//   const BrewerySearchChanged(this.query);
+//
+//   final String query;
+//
+//   @override
+//   List<Object?> get props => [query];
+// }
 

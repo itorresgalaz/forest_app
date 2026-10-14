@@ -1,10 +1,7 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
-import 'package:forest_breweries/app/app_routes.dart';
-import 'package:forest_breweries/presentation/bloc/brewery_list_bloc.dart';
-import 'package:forest_breweries/presentation/widgets/brewery_tile.dart';
-import 'package:forest_breweries/presentation/widgets/message_view.dart';
+import '../bloc/brewery_list_bloc.dart';
 
 class BreweryListScreen extends StatefulWidget {
   const BreweryListScreen({super.key});
@@ -14,148 +11,163 @@ class BreweryListScreen extends StatefulWidget {
 }
 
 class _BreweryListScreenState extends State<BreweryListScreen> {
-  final _scrollController = ScrollController();
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
+    // TODO: implement initState
     super.initState();
-    _scrollController.addListener(_onScroll);
+    _scrollController.addListener(_scroll);
+  }
+
+  void _scroll(){
+    if(!_scrollController.hasClients) return;
+
+    if (_scrollController.position.extentAfter >= 50){
+      return;
+    }
+
+    final bloc = context.read<BreweryListBloc>(); // Leo el state del bloc
+    final current = bloc.state;
+
+    if(current is! BreweryListLoaded || !current.hasMore || current.isLoadingMore || current.paginationError != null){
+      return;
+    }
+    bloc.add(const BreweryListNextRequested());
+
   }
 
   @override
   void dispose() {
-    _scrollController
-      ..removeListener(_onScroll)
-      ..dispose();
+    _scrollController.removeListener(_scroll);
+    _scrollController.dispose();
     super.dispose();
   }
 
-  void _onScroll() {
-    if (!_scrollController.hasClients) return;
-    final position = _scrollController.position;
-    if (position.pixels < position.maxScrollExtent - 300) return;
-
-    final bloc = context.read<BreweryListBloc>();
-    final state = bloc.state;
-    // Do not auto-retry a failed page on every scroll tick: the user retries
-    // explicitly with the button in the list footer.
-    if (state is BreweryListLoaded && state.paginationError == null) {
-      bloc.add(const BreweryNextPageRequested());
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Breweries')),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: TextField(
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search),
-                hintText: 'Search breweries',
-                border: OutlineInputBorder(),
-                isDense: true,
+      appBar: AppBar(
+        title: const Text('Breweries'),
+      ),
+      body: BlocBuilder<BreweryListBloc, BreweryListState>(
+        builder: (context, state) {
+          if (state is BreweryListInitial ||
+              state is BreweryListLoading) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
+
+          if (state is BreweryListEmpty) {
+            return const Center(
+              child: Text('No hay cervecerías disponibles'),
+            );
+          }
+
+          if (state is BreweryListFailure) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(state.message),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      context.read<BreweryListBloc>().add(
+                        const BreweryListRequested(),
+                      );
+                    },
+                    child: const Text('Reintentar'),
+                  ),
+                ],
               ),
-              textInputAction: TextInputAction.search,
-              onChanged: (value) => context
-                  .read<BreweryListBloc>()
-                  .add(BrewerySearchChanged(value)),
-            ),
-          ),
-          Expanded(
-            child: BlocBuilder<BreweryListBloc, BreweryListState>(
-              builder: (context, state) => switch (state) {
-                BreweryListInitial() || BreweryListLoading() => const Center(
-                  child: CircularProgressIndicator(),
-                ),
-                BreweryListEmpty(:final query) => MessageView(
-                  icon: Icons.search_off,
-                  message: query.isEmpty
-                      ? 'No breweries found.'
-                      : 'No breweries match "$query".',
-                ),
-                BreweryListFailure(:final message, :final query) => MessageView(
-                  icon: Icons.error_outline,
-                  message: message,
-                  onRetry: () => context
-                      .read<BreweryListBloc>()
-                      .add(BreweryListRequested(query: query)),
-                ),
-                BreweryListLoaded() => _BreweryList(
-                  state: state,
-                  controller: _scrollController,
-                ),
+            );
+          }
+
+          if (state is BreweryListLoaded) {
+            return ListView.builder(
+              controller: _scrollController,
+              itemCount: state.breweries.length + 1,
+              itemBuilder: (context, index) {
+                if(index == state.breweries.length){
+                  return _Footer(state: state);
+                }
+                final brewery = state.breweries[index];
+
+                return ListTile(
+                  title: Text('${brewery.name}'),
+                  subtitle: Text(
+                    'Kind: ${brewery.breweryType.name} · '
+                        'City: ${brewery.city ?? "Sin ciudad"}',
+                  ),
+                  trailing: const Icon(
+                    Icons.chevron_right,
+                  ),
+                  onTap: () {
+                    // context.pushNamed(
+                    //   'brewery-detail',
+                    //   pathParameters: {
+                    //     'id': brewery.id,
+                    //   },
+                    // );
+                  },
+                );
               },
-            ),
-          ),
-        ],
+            );
+          }
+
+          return const SizedBox.shrink();
+        },
       ),
     );
   }
 }
 
-class _BreweryList extends StatelessWidget {
-  const _BreweryList({required this.state, required this.controller});
-
-  final BreweryListLoaded state;
-  final ScrollController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    final hasFooter = state.isLoadingMore || state.paginationError != null;
-    final count = state.breweries.length;
-
-    return ListView.builder(
-      controller: controller,
-      itemCount: count + (hasFooter ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (index < count) {
-          final brewery = state.breweries[index];
-          return BreweryTile(
-            brewery: brewery,
-            onTap: () => Navigator.of(context).pushNamed(
-              AppRoutes.detail,
-              arguments: brewery.id,
-            ),
-          );
-        }
-        return _ListFooter(state: state);
-      },
-    );
-  }
-}
-
-class _ListFooter extends StatelessWidget {
-  const _ListFooter({required this.state});
-
+class _Footer extends StatelessWidget {
+  const _Footer({
+    required this.state,
+  });
   final BreweryListLoaded state;
 
   @override
   Widget build(BuildContext context) {
-    final error = state.paginationError;
-    if (error != null) {
-      return Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Text(error, textAlign: TextAlign.center),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () => context
-                  .read<BreweryListBloc>()
-                  .add(const BreweryNextPageRequested()),
-              child: const Text('Retry'),
-            ),
-          ],
+    if(state.isLoadingMore){
+      return const Padding(
+        padding: EdgeInsets.all(20),
+        child: Center(
+          child: CircularProgressIndicator(),
         ),
       );
     }
-    return const Padding(
-      padding: EdgeInsets.all(16),
-      child: Center(child: CircularProgressIndicator()),
-    );
+    if(state.paginationError != null){
+      return Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              Text(state.paginationError!),
+              TextButton(
+                  onPressed: () {
+                    context.read<BreweryListBloc>().add(
+                        const BreweryListNextRequested()
+                    );
+                  },
+                  child: const Text('Reintentar')
+              )
+            ],
+          ),
+      );
+    }
+    if (!state.hasMore) {
+      return  const Padding(
+        padding: EdgeInsets.all(20),
+        child: Center(
+          child: Text('No hay mas cervecerias'),
+        ),
+      );
+    }
+    return const SizedBox(height: 24);
   }
+
 }

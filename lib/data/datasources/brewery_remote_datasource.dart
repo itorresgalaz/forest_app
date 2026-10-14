@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
@@ -14,7 +13,7 @@ class BreweryRemoteDatasource {
     required int page,
     required int perPage,
   }) async {
-    final response = await _dio.get<List<dynamic>>(
+    final response = await _dio.get(
       '/breweries',
       queryParameters: {
         'page': page,
@@ -22,13 +21,7 @@ class BreweryRemoteDatasource {
       },
     );
 
-    final data = response.data ?? [];
-
-    if(data == null){
-      throw const FormatException(
-        'Breweries response is null',
-      );
-    }
+    final List<dynamic> data = (response.data as List?) ?? const [];
 
     return data.map(
           (json)=> BreweryDto.fromJson(

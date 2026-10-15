@@ -16,7 +16,11 @@ App Flutter que consume [Open Brewery DB](https://www.openbrewerydb.org/) para l
 - [Inyección de dependencias](#inyección-de-dependencias)
 - [Pruebas](#pruebas)
 - [Comandos](#comandos)
-- [Estado del proyecto](#estado-del-proyecto)
+- [Cómo ejecutar el proyecto](#cómo-ejecutar-el-proyecto)
+- [What you completed](#what-you-completed)
+- [What you intentionally left out](#what-you-intentionally-left-out)
+- [Any trade-offs you made](#any-trade-offs-you-made)
+- [What you would improve with more time](#what-you-would-improve-with-more-time)
 - [Notas](#notas)
 
 ## Stack
@@ -31,6 +35,7 @@ Dependencias principales:
 | `get_it` + `injectable` | Inyección de dependencias (código generado) |
 | `equatable` | Comparación por valor en entidades y estados |
 | `go_router` | Navegación (`/breweries`, `/breweries/:id`) |
+| `url_launcher` | Abrir el sitio web y el teléfono desde el detalle |
 | `stream_transform` | Utilidades de streams |
 
 Dev: `bloc_test`, `mocktail`, `build_runner`, `injectable_generator`.
@@ -124,10 +129,11 @@ B --> C["BlocProvider crea BreweryDetailCubit"]
 C --> D["Cubit.loadBrewery(id) muestra Loading"]
 D --> E["Repository.getBrewery(id)"]
 E --> F{"Resultado"}
-F -->|Éxito| G["Loaded: nombre, dirección, teléfono, web"]
+F -->|Éxito| G["Loaded: nombre, dirección, teléfono y web"]
 F -->|AppException| H["Failure: mensaje"]
 F -->|Error inesperado| H
 G --> I["AppBar muestra el nombre"]
+G --> K["Teléfono y web abren en apps externas"]
 H --> J["Reintentar con breweryId"]
 ```
 
@@ -226,10 +232,6 @@ Cobertura actual:
 
 Ejecutar:
 
-```sh
-flutter test
-```
-
 ## Comandos
 
 ```sh
@@ -252,13 +254,57 @@ flutter run
 flutter test
 ```
 
-## Estado del proyecto
+## Cómo ejecutar el proyecto
 
-- Listado con paginación: implementado (`BreweryListBloc`, `brewery_list_screen.dart`).
-- Detalle y navegación: implementado (`BreweryDetailCubit`, `brewery_details_screen.dart`, ruta `/breweries/:id`).
-- Búsqueda con debounce: implementado (`BrewerySearchChanged` en el BLoC, `searchBreweries` en datasource/repositorio y campo de búsqueda en `brewery_list_screen.dart`).
-- Pruebas: BLoC del listado (incluida búsqueda), Cubit del detalle.
+Requisitos: Flutter (Dart `^3.11.3`). No hace falta autenticación ni claves: la API de Open Brewery DB es pública.
+
+```sh
+flutter pub get
+dart run build_runner build --delete-conflicting-outputs   # regenera la inyección de dependencias
+flutter run
+flutter test
+```
+
+## Realizado
+
+Requisitos núcleo de la prueba:
+
+1. **Brewery list** — listado paginado con nombre, tipo y ciudad; estados Loading, Error y Empty; sin fallos silenciosos (`brewery_list_bloc.dart`, `brewery_list_screen.dart`).
+2. **Brewery detail** — navegación desde el listado (GoRouter `/breweries/:id`); muestra nombre (AppBar), dirección, teléfono y website; los fallos se muestran con `Failure` y reintento (`brewery_detail_cubit.dart`, `brewery_details_screen.dart`).
+3. **Architecture** — capas Data / Domain / Presentation, `BreweryRepositoryImpl` con mapeo `BreweryDto` → `Brewery`, estados sellados (`sealed class`) e inyección con `get_it` + `injectable`. Los widgets no usan el service locator: reciben el Bloc/Cubit vía `BlocProvider`.
+4. **Error handling** — el repositorio lanza `AppException` tipadas (`NetworkException`, `ServerException`, `NotFoundException`, `InvalidDataException`) y el Bloc/Cubit las convierte en estados de UI.
+5. **Testing** — `blocTest` de Loading → Success y Loading → Error con repositorio mockeado (`bloc_test` + `mocktail`).
+
+Bonus elegido: **búsqueda con debounce** (ver [Flujos](#flujos)). Los otros bonus no se implementaron.
+
+Extras: el teléfono y el sitio web se abren en apps externas con `url_launcher`.
 
 ## Notas
 
 - Entidades generadas desde el JSON con [quicktype](https://app.quicktype.io/).
+
+## No se realizó en esta revision
+
+- Configuración de plataforma para `url_launcher`: se usa `launchUrl` directamente (sin `canLaunchUrl`), por lo que no hacen falta `<queries>` en Android ni `LSApplicationQueriesSchemes` en iOS.
+- UX de búsqueda: sin estado dedicado de "sin coincidencias" más allá de `Empty`, sin botón para limpiar el campo ni historial.
+- Limpieza de código: template `blocTest` comentado, bloques comentados en `event`/`state` y la extension `brewery_type_label.dart` (sin uso).
+- Scaffolding de plataformas (`android/`, `ios/`, `.metadata`, `analysis_options.yaml`, `pubspec.lock`) presente en disco pero sin commitear.
+- Librerías del stack interno que no eran necesarias para el núcleo ni para el bonus elegido: Mapbox, Geolocator y Sentry.
+- Fuera de alcance declarado por la prueba: UI pixel-perfect, autenticación, cobertura total y CI/CD.
+
+## Decisiones
+
+- Se uso BLoC para el listado (paginación + búsqueda) y Cubit para el detalle, por tener este último un flujo más simple.
+- Un único estado `BreweryListLoaded` con `isLoadingMore` y `paginationError` en lugar de estados separados para la carga incremental.
+- Normalización del sitio web: si el dato no trae esquema se asume `https://`.
+- Al buscar se vuelve a la página 1 (`jumpTo(0)`) y se descartan respuestas obsoletas con un contador de generación, en vez de cancelar la petición HTTP.
+- Debounce fijo de 350 ms; la API exige al menos 3 caracteres.
+
+## Por revisar en futuros commit
+
+- Tests de widget/pantalla y de `url_launcher` (mock del `MethodChannel`), además de los casos faltantes.
+- Pull-to-refresh, manejo de "sin conexión" y caché. (soporte sin conexión).
+- Mapbox con marcadores para ver detalles de una cervecería.
+- Diseño de UI
+- i18n (los textos están fijos en español) y accesibilidad de los enlaces (`Semantics`).
+- Refactor de `brewery_list_screen.dart` (extraer el campo de búsqueda y el footer) y limpieza del código comentado.

@@ -1,4 +1,3 @@
-
 import 'package:dio/dio.dart';
 import 'package:forestchallenger/core/errors/app_exception.dart';
 import 'package:forestchallenger/data/datasources/brewery_remote_datasource.dart';
@@ -13,23 +12,23 @@ class BreweryRepositoryImpl implements BreweryRepository {
   const BreweryRepositoryImpl(this._remoteDataSource);
 
   final BreweryRemoteDatasource _remoteDataSource;
-  
+
   @override
   Future<List<Brewery>> getBreweries({
     required int page,
-    required int perPage
+    required int perPage,
   }) async {
     try {
       final dtos = await _remoteDataSource.getBreweries(
-          page: page,
-          perPage: perPage
+        page: page,
+        perPage: perPage,
       );
-      return dtos.map((dto)=>dto.toEntity()).toList();
+      return dtos.map((dto) => dto.toEntity()).toList();
     } on DioException catch (error) {
       throw DioExceptionMapper.map(error);
     } on FormatException catch (error) {
       throw InvalidDataException(cause: error);
-    } on TypeError catch (error){
+    } on TypeError catch (error) {
       throw InvalidDataException(cause: error);
     }
   }
@@ -39,13 +38,27 @@ class BreweryRepositoryImpl implements BreweryRepository {
     final dto = await _remoteDataSource.getBrewery(id: id);
 
     return dto.toEntity();
-
   }
 
   @override
-  Future<List<Brewery>> searchBreweries({required String query, required int page, required int perPage}) {
-    // TODO: implement searchBreweries
-    throw UnimplementedError();
+  Future<List<Brewery>> searchBreweries({
+    required String query,
+    required int page,
+    required int perPage,
+  }) async {
+    try {
+      final dtos = await _remoteDataSource.searchBreweries(
+        query: query,
+        page: page,
+        perPage: perPage,
+      );
+      return dtos.map((dto) => dto.toEntity()).toList();
+    } on DioException catch (error) {
+      throw DioExceptionMapper.map(error);
+    } on FormatException catch (error) {
+      throw InvalidDataException(cause: error);
+    } on TypeError catch (error) {
+      throw InvalidDataException(cause: error);
+    }
   }
-  
 }

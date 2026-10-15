@@ -20,6 +20,17 @@ final class BreweryListNextRequested extends BreweryListEvent {
   const BreweryListNextRequested();
 }
 
+final class BrewerySearchChanged extends BreweryListEvent {
+  const BrewerySearchChanged(this.query);
+
+  final String query;
+
+  @override
+  // TODO: implement props
+  List<Object?> get props => [query];
+}
+
+
 //
 // final class BreweryListRequested extends BreweryListEvent {
 //   const BreweryListRequested({this.query = ''});

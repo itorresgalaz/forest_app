@@ -7,7 +7,7 @@ abstract interface class BreweryRepository {
     required int perPage,
   });
 
-  Future<List<Brewery>> searchBreweries({
+  Future<List<Brewery>> searchBreweries({ //Busqueda
     required String query,
     required int page,
     required int perPage,

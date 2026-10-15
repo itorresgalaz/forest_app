@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
-import '../models/braweryDto.dart';
+import '../models/brawery_dto.dart';
 
 @lazySingleton
 class BreweryRemoteDatasource {
@@ -38,4 +38,27 @@ class BreweryRemoteDatasource {
     return BreweryDto.fromJson(response.data as Map<String, dynamic>);
   }
 
+  Future<List<BreweryDto>> searchBreweries({
+    required String query,
+    required int page,
+    required int perPage,
+  }) async {
+    final response = await _dio.get(
+      '/breweries/search',
+      queryParameters: {
+        'query': query,
+        'page': page,
+        'per_page': perPage
+      },
+    );
+
+    final List<dynamic> data = (response.data as List?) ?? const [];
+
+    return data.map(
+          (json) =>
+          BreweryDto.fromJson(
+            json as Map<String, dynamic>,
+          ),
+    ).toList();
+  }
 }

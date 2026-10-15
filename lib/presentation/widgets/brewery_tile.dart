@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../domain/entities/brewery.dart';
-import '../brewery_type_label.dart';
 
 class BreweryTile extends StatelessWidget {
   const BreweryTile({super.key, required this.brewery, required this.onTap});
@@ -11,12 +11,23 @@ class BreweryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final city = brewery.city ?? 'City not available';
     return ListTile(
       title: Text(brewery.name),
-      subtitle: Text('${brewery.breweryType.label} · $city'),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: onTap,
+      subtitle: Text(
+        '${brewery.breweryType} · '
+            '${brewery.city ?? "Sin ciudad"}',
+      ),
+      trailing: const Icon(
+        Icons.chevron_right,
+      ),
+      onTap: () {
+        context.pushNamed(
+          'brewery-detail',
+          pathParameters: {
+            'id': brewery.id,
+          },
+        );
+      },
     );
   }
 }

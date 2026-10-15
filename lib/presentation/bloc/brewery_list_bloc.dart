@@ -8,39 +8,105 @@ import 'package:forestchallenger/core/errors/app_exception.dart';
 import 'package:forestchallenger/domain/entities/brewery.dart';
 import 'package:forestchallenger/domain/repositories/brewery_repository.dart';
 
+
 part 'brewery_list_event.dart';
 part 'brewery_list_state.dart';
 
 @injectable
 class BreweryListBloc
     extends Bloc<BreweryListEvent, BreweryListState> {
-
   BreweryListBloc(this._repo)
       : super(const BreweryListInitial()) {
-    on<BreweryListRequested>(_onRequested);
-    on<BreweryListNextRequested>(_nextPageRequested, transformer: droppable()); //Droppable hace que si se genera nuevamente la misma solucitud las descarte
+    on<BreweryListRequested>(
+      _onRequested,
+      transformer: restartable(),
+    );
+
+    on<BrewerySearchChanged>(
+      _onSearchChanged,
+      transformer: restartable(),
+    );
+
+    on<BreweryListNextRequested>(
+      _onNextPageRequested,
+      transformer: droppable(),
+    );
   }
 
   static const int pageSize = 20;
+  static const searchDebounce =
+  Duration(milliseconds: 350);
 
   final BreweryRepository _repo;
 
+  // Identifica la versión actual de los resultados.
+  int _generation = 0;
+
+  // 1. CARGA INICIAL O RECARGA GENERAL
   Future<void> _onRequested(
       BreweryListRequested event,
       Emitter<BreweryListState> emit,
       ) async {
+    final generation = ++_generation;
+
     emit(const BreweryListLoading());
 
+    await _loadFirstPage(
+      query: '',
+      generation: generation,
+      emit: emit,
+    );
+  }
+
+  // 2. CAMBIO DEL TEXTO DE BÚSQUEDA
+  Future<void> _onSearchChanged(
+      BrewerySearchChanged event,
+      Emitter<BreweryListState> emit,
+      ) async {
+    final query = event.query.trim();
+    final generation = ++_generation;
+
+    emit(BreweryListLoading(query: query));
+
+    // Esperar antes de consultar la API.
+    await Future<void>.delayed(searchDebounce);
+
+    // Si llegó otra búsqueda, ignorar esta.
+    if (emit.isDone || generation != _generation) {
+      return;
+    }
+
+    // La API exige al menos tres caracteres.
+    if (query.isNotEmpty && query.length < 3) {
+      emit(BreweryListEmpty(query: query));
+      return;
+    }
+
+    await _loadFirstPage(
+      query: query,
+      generation: generation,
+      emit: emit,
+    );
+  }
+
+  // 3. CARGAR PRIMERA PÁGINA
+  Future<void> _loadFirstPage({
+    required String query,
+    required int generation,
+    required Emitter<BreweryListState> emit,
+  }) async {
     try {
-      final breweries = await _repo.getBreweries(
+      final breweries = await _fetchPage(
+        query: query,
         page: 1,
-        perPage: pageSize,
       );
 
-      if (emit.isDone) return;
+      if (emit.isDone || generation != _generation) {
+        return;
+      }
 
       if (breweries.isEmpty) {
-        emit(const BreweryListEmpty());
+        emit(BreweryListEmpty(query: query));
         return;
       }
 
@@ -48,87 +114,124 @@ class BreweryListBloc
         BreweryListLoaded(
           breweries: breweries,
           nextPage: 2,
-          hasMore: breweries.length == pageSize
+          hasMore: breweries.length == pageSize,
+          query: query,
         ),
       );
     } on AppException catch (error) {
-      if (emit.isDone) return;
+      if (emit.isDone || generation != _generation) {
+        return;
+      }
+
       emit(
         BreweryListFailure(
-          message: switch (error) {
-            NetworkException() =>
-            'Revisa tu conexión a internet.',
-
-            ServerException() =>
-            'Ocurrió un problema con el servidor.',
-
-            NotFoundException() =>
-            'No encontramos la información solicitada.',
-
-            InvalidDataException() =>
-            'No pudimos procesar la información recibida.',
-          },
+          message: error.message,
+          query: query,
         ),
       );
     } catch (error, stackTrace) {
       addError(error, stackTrace);
-      if (emit.isDone) return;
+
+      if (emit.isDone || generation != _generation) {
+        return;
+      }
+
       emit(
-        const BreweryListFailure(
+        BreweryListFailure(
           message: 'Ocurrió un error inesperado.',
+          query: query,
         ),
       );
     }
   }
 
-  Future<void> _nextPageRequested(
+  // 4. PAGINACIÓN
+  Future<void> _onNextPageRequested(
       BreweryListNextRequested event,
       Emitter<BreweryListState> emit,
       ) async {
-      final now = state;
+    final current = state;
 
-      if (now is! BreweryListLoaded || !now.hasMore || now.isLoadingMore){
-        return;
-      }
+    if (current is! BreweryListLoaded ||
+        !current.hasMore ||
+        current.isLoadingMore) {
+      return;
+    }
 
-      final loadingMore = now.copyWith(
-        isLoadingMore: true,
-        clearPaginationError: true,
-      );
+    final generation = _generation;
 
-      emit(loadingMore); // emite el cambio para que el evento cambie isLoadingMore a true
+    final loadingMore = current.copyWith(
+      isLoadingMore: true,
+      clearPaginationError: true,
+    );
+
+    emit(loadingMore);
 
     try {
-      final nextQuery = await _repo.getBreweries(
-          page: now.nextPage,
-          perPage: pageSize,
+      final newBreweries = await _fetchPage(
+        query: current.query,
+        page: current.nextPage,
       );
-      if(emit.isDone) return;
+
+      if (emit.isDone || generation != _generation) {
+        return;
+      }
 
       emit(
         loadingMore.copyWith(
           breweries: [
-            ...now.breweries,
-            ...nextQuery,
+            ...current.breweries,
+            ...newBreweries,
           ],
-          nextPage: now.nextPage+1,
-          hasMore: nextQuery.length == pageSize,
+          nextPage: current.nextPage + 1,
+          hasMore: newBreweries.length == pageSize,
           isLoadingMore: false,
         ),
       );
-    } on AppException catch (error){
-      if (emit.isDone) return;
+    } on AppException catch (error) {
+      if (emit.isDone || generation != _generation) {
+        return;
+      }
 
-      //si hay error no perdemos la lista actual
       emit(
         loadingMore.copyWith(
           isLoadingMore: false,
-          paginationError: 'Ocurrio un error al cargar mas cervecerias.',
-        )
+          paginationError: error.message,
+        ),
       );
+    } catch (error, stackTrace) {
+      addError(error, stackTrace);
 
+      if (emit.isDone || generation != _generation) {
+        return;
+      }
+
+      emit(
+        loadingMore.copyWith(
+          isLoadingMore: false,
+          paginationError:
+          'No pudimos cargar más cervecerías.',
+        ),
+      );
     }
   }
 
+  // 5. SELECCIONAR LA OPERACIÓN DEL REPOSITORIO
+  Future<List<Brewery>> _fetchPage({
+    required String query,
+    required int page,
+  }) {
+    if (query.isEmpty) {
+      return _repo.getBreweries(
+        page: page,
+        perPage: pageSize,
+      );
+    }
 
+    return _repo.searchBreweries(
+      query: query,
+      page: page,
+      perPage: pageSize,
+    );
+  }
 }

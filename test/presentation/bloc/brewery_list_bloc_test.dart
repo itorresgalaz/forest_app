@@ -136,7 +136,7 @@ void main() {
         isA<BreweryListFailure>().having(
           (error) => error.message,
           'mensaje',
-          'Ocurrió un problema con el servidor.',
+          'The server returned an error.',
         ),
       ],
       verify: (_) {
@@ -218,28 +218,118 @@ void main() {
         bloc.add(const BreweryListNextRequested());
       },
 
-
       expect: () => [
         // Estados esperados.
         isA<BreweryListLoading>(),
 
         //Page 1
-        isA<BreweryListLoaded>()
-            .having((state) => state.breweries.length, 'primera pagina', 20),
+        isA<BreweryListLoaded>().having(
+          (state) => state.breweries.length,
+          'primera pagina',
+          20,
+        ),
 
-        isA<BreweryListLoaded>()
-            .having((state) => state.isLoadingMore, 'cargando mas', true),
+        isA<BreweryListLoaded>().having(
+          (state) => state.isLoadingMore,
+          'cargando mas',
+          true,
+        ),
 
         isA<BreweryListLoaded>()
             .having((state) => state.isLoadingMore, 'carga terminada', false)
-            .having((state) => state.paginationError, 'error de paginacion',
-                'Ocurrio un error al cargar mas cervecerias.')
+            .having(
+              (state) => state.paginationError,
+              'error de paginacion',
+              'The server returned an error.',
+            ),
       ],
       verify: (_) {
         verify(() => repository.getBreweries(page: 1, perPage: 20)).called(1);
         verify(() => repository.getBreweries(page: 2, perPage: 20)).called(1);
       },
     );
+
+
+    blocTest<BreweryListBloc, BreweryListState>(
+      'realiza solo la última búsqueda después del debounce',
+
+      build: () {
+        when(
+              () => repository.searchBreweries(
+            query: '10ba',
+            page: 1,
+            perPage: 20,
+          ),
+        ).thenAnswer((_) async => firstListBrewery);
+
+        return BreweryListBloc(repository);
+      },
+
+      act: (bloc) async {
+        bloc.add(const BrewerySearchChanged('10'));
+
+        await Future<void>.delayed(
+          const Duration(milliseconds: 10),
+        );
+
+        bloc.add(const BrewerySearchChanged('10b'));
+
+        await Future<void>.delayed(
+          const Duration(milliseconds: 10),
+        );
+
+        bloc.add(const BrewerySearchChanged('10ba'));
+      },
+
+      wait: const Duration(milliseconds: 500),
+
+      expect: () => [
+        isA<BreweryListLoading>().having(
+              (state) => state.query,
+          'query',
+          '10ba',
+        ),
+
+        isA<BreweryListLoaded>()
+            .having(
+              (state) => state.query,
+          'query',
+          '10ba',
+        )
+            .having(
+              (state) => state.breweries.length,
+          'resultados',
+          20,
+        ),
+      ],
+
+      verify: (_) {
+        verify(
+              () => repository.searchBreweries(
+            query: '10ba',
+            page: 1,
+            perPage: 20,
+          ),
+        ).called(1);
+
+        verifyNever(
+              () => repository.searchBreweries(
+            query: '10',
+            page: 1,
+            perPage: 20,
+          ),
+        );
+
+        verifyNever(
+              () => repository.searchBreweries(
+            query: '10b',
+            page: 1,
+            perPage: 20,
+          ),
+        );
+      },
+    );
+
   });
 }
 

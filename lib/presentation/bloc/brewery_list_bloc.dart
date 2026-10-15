@@ -7,6 +7,7 @@ import 'package:injectable/injectable.dart';
 import 'package:forestchallenger/core/errors/app_exception.dart';
 import 'package:forestchallenger/domain/entities/brewery.dart';
 import 'package:forestchallenger/domain/repositories/brewery_repository.dart';
+import 'package:stream_transform/stream_transform.dart';
 
 
 part 'brewery_list_event.dart';
@@ -24,7 +25,7 @@ class BreweryListBloc
 
     on<BrewerySearchChanged>(
       _onSearchChanged,
-      transformer: restartable(),
+      transformer: _debounceRestartable(searchDebounce),
     );
 
     on<BreweryListNextRequested>(
@@ -34,8 +35,7 @@ class BreweryListBloc
   }
 
   static const int pageSize = 20;
-  static const searchDebounce =
-  Duration(milliseconds: 350);
+  static const searchDebounce = Duration(milliseconds: 350);
 
   final BreweryRepository _repo;
 
@@ -68,8 +68,6 @@ class BreweryListBloc
 
     emit(BreweryListLoading(query: query));
 
-    // Esperar antes de consultar la API.
-    await Future<void>.delayed(searchDebounce);
 
     // Si llegó otra búsqueda, ignorar esta.
     if (emit.isDone || generation != _generation) {
@@ -234,4 +232,17 @@ class BreweryListBloc
       perPage: pageSize,
     );
   }
+}
+
+
+
+EventTransformer<E> _debounceRestartable<E>(
+    Duration duration,
+    ) {
+  return (events, mapper) {
+    return restartable<E>().call(
+      events.debounce(duration),
+      mapper,
+    );
+  };
 }

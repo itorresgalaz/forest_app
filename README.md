@@ -17,6 +17,7 @@ App Flutter que consume [Open Brewery DB](https://www.openbrewerydb.org/) para l
 - [Pruebas](#pruebas)
 - [Comandos](#comandos)
 - [Estado del proyecto](#estado-del-proyecto)
+- [Notas](#notas)
 
 ## Stack
 
@@ -25,7 +26,7 @@ Dependencias principales:
 | Paquete | Uso |
 | --- | --- |
 | `flutter_bloc` | BLoC y Cubit en la capa de presentación |
-| `bloc_concurrency` | Transformers de eventos (`droppable` en paginación) |
+| `bloc_concurrency` | Transformers de eventos (`restartable` en listado/búsqueda, `droppable` en paginación) |
 | `dio` | Cliente HTTP hacia Open Brewery DB |
 | `get_it` + `injectable` | Inyección de dependencias (código generado) |
 | `equatable` | Comparación por valor en entidades y estados |
@@ -132,24 +133,8 @@ H --> J["Reintentar con breweryId"]
 
 ### Búsqueda
 
-Implementada en `BreweryListBloc` con el evento `BrewerySearchChanged`: debounce de 350 ms, transformer `restartable` y un contador de generación que descarta respuestas obsoletas. La API (`/breweries/search`) exige al menos 3 caracteres; con menos, el BLoC emite `Empty` sin llamar al repositorio.
+Implementada en `BreweryListBloc` con el evento `BrewerySearchChanged`: debounce de 350 ms, transformer `restartable` y un contador de generación que descarta respuestas obsoletas. La API (`/breweries/search`) exige al menos 3 caracteres: con 1 o 2 el BLoC emite `Empty` sin llamar al repositorio, y con el campo vacío vuelve a la lista general.
 
-```mermaid
-flowchart TD
-A["Usuario escribe IPA"] --> B["Evento: búsqueda modificada"]
-B --> C["Esperar pausa de escritura"]
-C --> D["Comenzar nueva búsqueda"]
-D --> E["Estado Loading"]
-E --> F["Consultar repositorio con IPA"]
-F --> G{"¿Resultado?"}
-G -->|Con datos| H["Estado Loaded"]
-G -->|Sin datos| I["Estado Empty"]
-G -->|Error| J["Estado Failure"]
-classDef event fill:#dbeafe,color:#1e40af,stroke:#93c5fd
-classDef state fill:#dcfce7,color:#166534,stroke:#86efac
-class B event
-class E,H,I,J state
-```
 ```mermaid
 flowchart TD
 A["Usuario escribe"] --> B["BrewerySearchChanged"]
@@ -237,7 +222,7 @@ Cobertura actual:
 
 - `brewery_list_bloc_test.dart`: carga inicial (Loading → Loaded), lista vacía (Empty), error (`ServerException` → Failure), paginación (acumula página 2) y fallo en página 2 (conserva la lista y expone `paginationError`).
 - `brewery_detail_cubit_test.dart`: detalle exitoso (Loading → Loaded) y fallo de red (Loading → Failure).
-- Búsqueda: sin pruebas dedicadas todavía.
+- Búsqueda: debounce (solo la última consulta llega al repositorio).
 
 Ejecutar:
 
@@ -259,6 +244,12 @@ flutter pub add stream_transform
 # dev
 flutter pub add --dev bloc_test
 flutter pub add --dev mocktail
+
+# ejecutar la app
+flutter run
+
+# pruebas
+flutter test
 ```
 
 ## Estado del proyecto
@@ -266,7 +257,7 @@ flutter pub add --dev mocktail
 - Listado con paginación: implementado (`BreweryListBloc`, `brewery_list_screen.dart`).
 - Detalle y navegación: implementado (`BreweryDetailCubit`, `brewery_details_screen.dart`, ruta `/breweries/:id`).
 - Búsqueda con debounce: implementado (`BrewerySearchChanged` en el BLoC, `searchBreweries` en datasource/repositorio y campo de búsqueda en `brewery_list_screen.dart`).
-- Pruebas: BLoC del listado y Cubit del detalle.
+- Pruebas: BLoC del listado (incluida búsqueda), Cubit del detalle.
 
 ## Notas
 

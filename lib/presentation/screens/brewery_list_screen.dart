@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import '../bloc/brewery_list_bloc.dart';
 
 class BreweryListScreen extends StatefulWidget {
@@ -106,12 +107,12 @@ class _BreweryListScreenState extends State<BreweryListScreen> {
                     Icons.chevron_right,
                   ),
                   onTap: () {
-                    // context.pushNamed(
-                    //   'brewery-detail',
-                    //   pathParameters: {
-                    //     'id': brewery.id,
-                    //   },
-                    // );
+                    context.pushNamed(
+                      'brewery-detail',
+                      pathParameters: {
+                        'id': brewery.id,
+                      },
+                    );
                   },
                 );
               },

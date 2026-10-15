@@ -35,9 +35,11 @@ class BreweryRepositoryImpl implements BreweryRepository {
   }
 
   @override
-  Future<Brewery> getBrewery(String id) {
-    // TODO: implement getBrewery
-    throw UnimplementedError();
+  Future<Brewery> getBrewery(String id) async {
+    final dto = await _remoteDataSource.getBrewery(id: id);
+
+    return dto.toEntity();
+
   }
 
   @override

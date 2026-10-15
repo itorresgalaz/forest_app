@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:forestchallenger/presentation/bloc/brewery_list_bloc.dart';
+import 'package:forestchallenger/presentation/cubit/brewery_detail_cubit.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/di/injection.dart';
@@ -13,7 +14,7 @@ void main() {
 
   final router = AppRouter.create(
     createListBloc: () => getIt<BreweryListBloc>(),
-    //createDetailCubit: () => getIt<BreweryDetailCubit>(),
+    createDetailCubit: () => getIt<BreweryDetailCubit>(),
   );
 
   runApp(ForestBreweriesApp(router: router));

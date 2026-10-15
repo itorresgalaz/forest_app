@@ -7,6 +7,7 @@ import '../models/braweryDto.dart';
 @lazySingleton
 class BreweryRemoteDatasource {
   const BreweryRemoteDatasource(this._dio);
+
   final Dio _dio;
 
   Future<List<BreweryDto>> getBreweries({
@@ -24,13 +25,17 @@ class BreweryRemoteDatasource {
     final List<dynamic> data = (response.data as List?) ?? const [];
 
     return data.map(
-          (json)=> BreweryDto.fromJson(
-            json as Map<String,dynamic>,
+          (json) =>
+          BreweryDto.fromJson(
+            json as Map<String, dynamic>,
           ),
     ).toList();
   }
 
+  Future<BreweryDto> getBrewery({required String id,}) async {
+      final response = await _dio.get('/breweries/$id');
 
-
+    return BreweryDto.fromJson(response.data as Map<String, dynamic>);
+  }
 
 }

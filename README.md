@@ -17,11 +17,11 @@ App Flutter que consume [Open Brewery DB](https://www.openbrewerydb.org/) para l
 - [Pruebas](#pruebas)
 - [Comandos](#comandos)
 - [Cómo ejecutar el proyecto](#cómo-ejecutar-el-proyecto)
-- [What you completed](#what-you-completed)
-- [What you intentionally left out](#what-you-intentionally-left-out)
-- [Any trade-offs you made](#any-trade-offs-you-made)
-- [What you would improve with more time](#what-you-would-improve-with-more-time)
+- [Realizado](#realizado)
 - [Notas](#notas)
+- [No se realizó en esta revisión](#no-se-realizó-en-esta-revisión)
+- [Decisiones](#decisiones)
+- [Por revisar en futuros commits](#por-revisar-en-futuros-commits)
 
 ## Stack
 
@@ -42,21 +42,42 @@ Dev: `bloc_test`, `mocktail`, `build_runner`, `injectable_generator`.
 
 ## Arquitectura
 
-```text
-PRESENTATION (Screen - Widgets - Bloc - Cubit)
-  BreweryListScreen + BreweryDetailScreen
-  BreweryListBloc + BreweryDetailCubit
-        |
-        v
-DOMAIN (Entities - Repository)
-  Brewery
-  BreweryRepository (contrato)
-        ^
-        |
-DATA (RepositoryImpl - Datasource - DTO (Data transfer object))
-  BreweryRepositoryImpl
-  BreweryRemoteDataSource
-  BreweryDto + Dio
+```mermaid
+flowchart TD
+    subgraph PRESENTATION["PRESENTATION"]
+        direction TB
+        S["BreweryListScreen<br/>BreweryDetailScreen"]
+        B["BreweryListBloc<br/>BreweryDetailCubit"]
+        S --> B
+    end
+
+    subgraph DOMAIN["DOMAIN"]
+        direction TB
+        E["Brewery"]
+        R["BreweryRepository<br/>(Contrato)"]
+        E --- R
+    end
+
+    subgraph DATA["DATA"]
+        direction TB
+        RI["BreweryRepositoryImpl"]
+        DS["BreweryRemoteDataSource"]
+        DTO["BreweryDto"]
+        DIO["Dio"]
+
+        RI --> DS
+        DS --> DTO
+        DS --> DIO
+    end
+
+    B --> R
+    RI -.->|implements| R
+
+    style PRESENTATION fill:#D6EAF8,stroke:#2874A6,color:#154360
+    style DOMAIN fill:#D5F5E3,stroke:#239B56,color:#145A32
+    style DATA fill:#FDEBD0,stroke:#CA6F1E,color:#784212
+
+
 ```
 
 Responsabilidades:
@@ -230,8 +251,6 @@ Cobertura actual:
 - `brewery_detail_cubit_test.dart`: detalle exitoso (Loading → Loaded) y fallo de red (Loading → Failure).
 - Búsqueda: debounce (solo la última consulta llega al repositorio).
 
-Ejecutar:
-
 ## Comandos
 
 ```sh
@@ -283,24 +302,23 @@ Extras: el teléfono y el sitio web se abren en apps externas con `url_launcher`
 
 - Entidades generadas desde el JSON con [quicktype](https://app.quicktype.io/).
 
-## No se realizó en esta revision
+## No se realizó en esta revisión
 
 - Configuración de plataforma para `url_launcher`: se usa `launchUrl` directamente (sin `canLaunchUrl`), por lo que no hacen falta `<queries>` en Android ni `LSApplicationQueriesSchemes` en iOS.
 - UX de búsqueda: sin estado dedicado de "sin coincidencias" más allá de `Empty`, sin botón para limpiar el campo ni historial.
 - Limpieza de código: template `blocTest` comentado, bloques comentados en `event`/`state` y la extension `brewery_type_label.dart` (sin uso).
-- Scaffolding de plataformas (`android/`, `ios/`, `.metadata`, `analysis_options.yaml`, `pubspec.lock`) presente en disco pero sin commitear.
 - Librerías del stack interno que no eran necesarias para el núcleo ni para el bonus elegido: Mapbox, Geolocator y Sentry.
 - Fuera de alcance declarado por la prueba: UI pixel-perfect, autenticación, cobertura total y CI/CD.
 
 ## Decisiones
 
-- Se uso BLoC para el listado (paginación + búsqueda) y Cubit para el detalle, por tener este último un flujo más simple.
+- Se usó BLoC para el listado (paginación + búsqueda) y Cubit para el detalle, por tener este último un flujo más simple.
 - Un único estado `BreweryListLoaded` con `isLoadingMore` y `paginationError` en lugar de estados separados para la carga incremental.
 - Normalización del sitio web: si el dato no trae esquema se asume `https://`.
 - Al buscar se vuelve a la página 1 (`jumpTo(0)`) y se descartan respuestas obsoletas con un contador de generación, en vez de cancelar la petición HTTP.
 - Debounce fijo de 350 ms; la API exige al menos 3 caracteres.
 
-## Por revisar en futuros commit
+## Por revisar en futuros commits
 
 - Tests de widget/pantalla y de `url_launcher` (mock del `MethodChannel`), además de los casos faltantes.
 - Pull-to-refresh, manejo de "sin conexión" y caché. (soporte sin conexión).
